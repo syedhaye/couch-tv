@@ -188,6 +188,7 @@ def person_name(pid):
 
 # ---------- the home's look ----------
 SCENE_IDS = ["night", "golden", "water", "fog", "dawn"]
+PHOTO_COLLECTIONS = ["new-york", "landscapes", "culture", "art", "cities", "nature"]   # tv-home/web/photos.js
 DOCK_LIMIT = 10   # apps in the dock before Settings and More apps; 10 fills a 1080p screen
 
 
@@ -215,8 +216,10 @@ def _my_scenes(items):
         seen.add(m["id"])
         c = m.get("clock") if isinstance(m.get("clock"), dict) else {}
         clock = {"x": c.get("x") if c.get("x") in ("left", "centre", "right") else "centre",
-                 "font": "inter" if c.get("font") == "inter" else "antonio"}
-        for key, lo, hi in (("y", 0.12, 0.6), ("size", 0.2, 0.45), ("weight", 100, 900)):
+                 "font": c.get("font") if c.get("font") in ("inter", "serif") else "antonio"}
+        if c.get("fill") == "solid":
+            clock["fill"] = "solid"
+        for key, lo, hi in (("y", 0.12, 0.72), ("size", 0.2, 0.45), ("weight", 100, 900)):
             v = _share(c.get(key), lo, hi)
             if v is not None:
                 clock[key] = v
@@ -279,6 +282,33 @@ def _home(h):
         out["nav_sound"] = h["nav_sound"]
     if h.get("glass_focus") in ("colour", "glass"):   # glass app icons: the focused app (#32)
         out["glass_focus"] = h["glass_focus"]
+    # Keep watching under the dock, below the screen's edge (Night look)
+    if h.get("shelf") in ("below", "above"):
+        out["shelf"] = h["shelf"]
+    # the weather as a card under the clock, like the iPhone Weather app
+    if h.get("weather") in ("card", "line"):
+        out["weather"] = h["weather"]
+    # this house's apps first, in this order (Android package names)
+    order = h.get("app_order") if isinstance(h.get("app_order"), list) else []
+    order = [p for p in dict.fromkeys(order) if isinstance(p, str) and re.fullmatch(r"[A-Za-z0-9_.]{1,200}", p)]
+    if order:
+        out["app_order"] = order[:40]
+    # fresh featured photos from Wikimedia Commons (tv-home/web/photos.js)
+    ph = h.get("photos")
+    if ph is True:
+        out["photos"] = True
+    elif isinstance(ph, dict) and ph.get("enabled") is not False:
+        photos = {}
+        colls = ph.get("collections") if isinstance(ph.get("collections"), list) else []
+        colls = [c for c in dict.fromkeys(colls) if c in PHOTO_COLLECTIONS]
+        if colls:
+            photos["collections"] = colls
+        for key, lo, hi in (("count", 3, 30), ("every_days", 1, 30)):
+            if key in ph:
+                photos[key] = _int(ph.get(key), 12 if key == "count" else 1, lo, hi)
+        if isinstance(ph.get("builtin"), bool):
+            photos["builtin"] = ph["builtin"]
+        out["photos"] = photos
     vid = h.get("video_url")
     if isinstance(vid, str) and re.match(r"https?://", vid) and len(vid) <= 2000:
         out["video_url"] = vid
@@ -288,7 +318,7 @@ def _home(h):
 HOME = _home(CONFIG.get("home"))
 
 # ---------- quick settings (per TV) and picture modes ----------
-QUICK_IDS = ["sleep", "picture", "look", "input", "screensaver"]
+QUICK_IDS = ["sleep", "picture", "look", "input", "screensaver", "googletv"]
 
 
 def quick_for(tv_cfg):

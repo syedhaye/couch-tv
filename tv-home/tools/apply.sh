@@ -88,6 +88,10 @@ esac
 # The screensaver quick button cuts the screen timeout for a moment (its own screensaver refuses
 # apps), which needs "modify system settings".
 "$PY" "$T" shell "appops set app.couchtv.launcher WRITE_SETTINGS allow" > /dev/null 2>&1 || true
+# TCL's own auto-start lock (TclAppBoot, appop APP_AUTO_START, "ignore" for a new app) stops Android
+# restarting the Home button watch after the app was stopped: seen on a TCL 55Q550G, Android TV 11.
+# Other TVs have no such appop and refuse the command, which is fine.
+"$PY" "$T" shell "appops set app.couchtv.launcher APP_AUTO_START allow" > /dev/null 2>&1 || true
 
 echo "2/4  Keeping the TV's own home and setup on"
 present=$("$PY" "$T" shell "pm list packages" | sed 's/package://')
