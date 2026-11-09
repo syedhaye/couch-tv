@@ -438,6 +438,36 @@ html.still .tile.focus .face, html.still .tile.focus .face::after { animation: n
 .scene-mine.mine-right .date { left: auto; right: 6.5rem; text-align: right; }
 .scene-mine.mine-dark .date { color: #16201d; text-shadow: none; }
 .scene-mine.mine-dark .date .wx { color: rgba(22, 32, 29, 0.72); }
+/* clock.font "serif": DM Serif Display, close to the iPhone lock screen's serif clock.
+   Its digits' ink ends about 0.8 of the font size below the top. */
+@font-face {
+  font-family: "DM Serif Display"; font-weight: 400; font-display: block;
+  src: url(fonts/dm-serif-display-latin-400-normal.woff2) format("woff2");
+}
+.s-mine.f-serif .gclock { font-family: "DM Serif Display", Georgia, serif; font-weight: 400; letter-spacing: -0.01em; line-height: 0.86; }
+.scene-mine.mine-below.mine-serif .date { top: calc(var(--my-top, 9.375rem) + var(--my-size, 25rem) * 0.8 + 1rem); }
+/* clock.fill "solid": plain white digits with a soft shadow instead of frosted glass, for busy or
+   grey photos where the glass would melt into the picture */
+.s-mine.f-solid .gclock { filter: drop-shadow(0 0.25rem 1.5rem rgba(0, 0, 0, 0.32)); }
+.s-mine.f-solid .gclock .fill {
+  background-image: none !important; -webkit-background-clip: border-box; background-clip: border-box;
+  color: rgba(255, 255, 255, 0.95);
+}
+.s-mine.f-solid .gclock .rim, .s-mine.f-solid .gclock .sheen { display: none; }
+
+/* ================= Keep watching below the fold (home.shelf "below", Night look) =================
+   The cards sit under the dock, past the bottom of the screen. app.js puts html.fold-down on while
+   the focus is on them: the photo, clock and dock slide up together and the top row fades, so the
+   cards come into view; up from the cards slides it all back. */
+.fold.theme-night .shelf { top: calc(100vh + 2.5rem); }
+.fold.theme-night .home, .fold.theme-night .scenes { transition: transform 420ms var(--ease); }
+.fold.theme-night .top { transition: opacity 300ms var(--ease); }
+.fold-down.theme-night .home, .fold-down.theme-night .scenes { transform: translateY(-17.5rem); }
+.fold-down.theme-night .top { opacity: 0; }
+.fold-down.theme-night .scrim { background: linear-gradient(180deg, rgba(0, 0, 0, 0) 25%, rgba(0, 0, 0, 0.55) 60%, rgba(0, 0, 0, 0.9) 100%); }
+@media (prefers-reduced-motion: reduce) {
+  .fold.theme-night .home, .fold.theme-night .scenes, .fold.theme-night .top { transition: none; }
+}
 
 /* ================= the gear tile's menu: Home settings or TV settings ================= */
 .gear-pop {

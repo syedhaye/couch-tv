@@ -31,6 +31,9 @@
   var ON_TV = false;   // served by the on-TV app (config "mode"), which can open the TV's own settings screens
   // The look: ?theme= for a preview, then Home settings (or the Look button) on this TV, then home.look.
   var THEME = "night", NIGHT = true, CLOCK24 = false;
+  // home.shelf "below" (Night look): Keep watching sits under the dock, below the screen's edge;
+  // pressing down from the dock slides the page up to it (app.css, "Keep watching below the fold")
+  var FOLD = false;
   // Glass panels ("off", "on", or "lite": no blur, for slower TVs) and the video background, from
   // Home settings, then home.glass and home.video_url. Both are off unless someone switches them on.
   var GLASS = "off", GLASS_ICONS = false, VIDEO_ON = false, VIDEO_URL = "";
@@ -210,6 +213,8 @@
     if (THEME !== "classic") THEME = "night";
     NIGHT = THEME === "night";
     document.documentElement.classList.toggle("theme-night", NIGHT);
+    FOLD = NIGHT && (HOME.shelf === "below" || /[?&]shelf=below/.test(Q));
+    document.documentElement.classList.toggle("fold", FOLD);
     GLASS = glassSetting();
     document.documentElement.classList.toggle("glass", GLASS !== "off");
     document.documentElement.classList.toggle("glass-lite", GLASS === "lite");
@@ -446,18 +451,21 @@
       taken.push(m.id);
       var c = m.clock && typeof m.clock === "object" ? m.clock : {};
       var size = share(c.size, 0.2, 0.45, 0.37);   // the digits' font size, as a share of the screen height
-      var below = m.date === "below", inter = c.font === "inter";
+      var below = m.date === "below", inter = c.font === "inter", serif = c.font === "serif";
       // the top of the clock, as a share of the screen height. The digits' ink ends 0.92 of the
-      // font size below it (Antonio; Inter 0.77), and must end above Keep watching, as on the
-      // waterline scene; with the date below, the date must fit too.
+      // font size below it (Antonio; Inter 0.77; DM Serif Display 0.8), and must end above Keep
+      // watching, as on the waterline scene (or, with Keep watching below the fold, above the
+      // dock); with the date below, the date must fit too.
       var y = share(c.y, 0.12, 0.6, 0.14);
-      y = Math.max(0.12, Math.min(y, 0.62 - (inter ? 0.77 : 0.92) * size - (below ? 0.06 : 0)));
+      y = Math.max(0.12, Math.min(y, (FOLD ? 0.72 : 0.62) - (inter ? 0.77 : serif ? 0.8 : 0.92) * size - (below ? 0.06 : 0)));
       // cutout: true only when make-scene.py made the cut-out (scene-<id>-fg.webp); without it the
       // clock is simply drawn over the photo
       out.push({ id: m.id, photo: "mine/scene-" + m.id, fg: m.cutout === true, glass: true, mine: true, n: out.length + 1,
         name: typeof m.name === "string" ? m.name.slice(0, 40) : "",
         x: ["left", "right"].indexOf(c.x) >= 0 ? c.x : "centre", y: y, size: size,
-        inter: inter, weight: Math.round(share(c.weight, 100, 900, 600) / 100) * 100,
+        inter: inter, serif: serif, weight: Math.round(share(c.weight, 100, 900, 600) / 100) * 100,
+        // fill "solid": plain white digits, as on the iPhone lock screen, instead of frosted glass
+        solid: c.fill === "solid",
         below: below, dark: m.text === "dark" });
     });
     return out;
@@ -503,7 +511,8 @@
       el.innerHTML = '<img class="sbg" alt=""><div class="shade"></div><div class="gclock"></div>' +
         (s.water ? '<div class="gclock under"></div>' : "") + (s.fg ? '<img class="fg" alt="">' : "");
       if (s.mine) {   // your own scene: its clock from config.json (app.css, "your own scenes")
-        el.className += " x-" + s.x + (s.inter ? " f-inter" : "") + (s.dark ? " t-dark" : "");
+        el.className += " x-" + s.x + (s.inter ? " f-inter" : "") + (s.serif ? " f-serif" : "") +
+          (s.solid ? " f-solid" : "") + (s.dark ? " t-dark" : "");
         el.style.setProperty("--my-top", s.y * 100 + "vh");
         el.style.setProperty("--my-size", s.size * 100 + "vh");
         el.style.setProperty("--my-weight", s.weight);
@@ -620,7 +629,8 @@
     setTimeout(function () {
       var s = SCENES[i], root = document.documentElement, cls = " scene-" + sceneClass(s);
       if (s.mine) {   // the date follows your own scene's clock
-        cls += " mine-" + s.x + (s.below ? " mine-below" : "") + (s.inter ? " mine-inter" : "") + (s.dark ? " mine-dark" : "");
+        cls += " mine-" + s.x + (s.below ? " mine-below" : "") + (s.inter ? " mine-inter" : "") +
+          (s.serif ? " mine-serif" : "") + (s.dark ? " mine-dark" : "");
         root.style.setProperty("--my-top", s.y * 100 + "vh");
         root.style.setProperty("--my-size", s.size * 100 + "vh");
       }
@@ -1464,6 +1474,8 @@
   function paintFocus() {
     if (zone === "settings") { renderSettings(); return; }
     if (zone === "smart") { window.smartHome.paint(); return; }
+    // below the fold: the page slides up while the focus is on Keep watching (or Now playing, its first card)
+    document.documentElement.classList.toggle("fold-down", FOLD && (zone === "shelf" || zone === "np"));
     clearFocus();
     renderHint();
     if (npVisible()) renderNp();   // its buttons carry the focus only while zone is "np"
@@ -1554,6 +1566,12 @@
         // the first card of the row: right past the last button goes on to the shows
         if (dx > 0 && npI === 2) { if (cards.length) { zone = "shelf"; s = 0; } }
         else if (dx) npI = Math.max(0, Math.min(2, npI + dx));
+        else if (FOLD && dy < 0 && gridEls.length) {   // below the fold: back up to the dock's last row
+          var nu = $("np").getBoundingClientRect();
+          g = nearestInRow(Math.floor((gridEls.length - 1) / GRID_COLS), nu.left + nu.width / 2);
+          zone = "grid";
+        }
+        else if (FOLD) { /* nothing below Keep watching */ }
         else if (dy < 0) { if (peopleOn()) toPeople(); else if (hasQuick()) { zone = "quick"; qi = 0; } }
         else if (dy > 0 && gridEls.length) {
           var nb = $("np").getBoundingClientRect();
@@ -1579,7 +1597,7 @@
       else if (dy > 0) {
         if (!NIGHT && npReach()) zone = "np";
         else if (peopleOn()) toPeople();
-        else if (cards.length) zone = "shelf";
+        else if (cards.length && !FOLD) zone = "shelf";
         else { zone = "grid"; g = Math.min(GRID_COLS, gridEls.length) - 1; }
       }
       paintFocus();
@@ -1590,10 +1608,17 @@
       else if (dx && !isHead()) {
         // moving across the names only moves the outline; OK picks (you have to click to select), so passing a name on the way to Sleep timer changes nothing
         pi = Math.max(0, Math.min(PEOPLE.length - 1, pi + dx));
-      } else if (dy > 0) zone = NIGHT && npReach() ? "np" : cards.length ? "shelf" : "grid";
+      } else if (dy > 0) zone = FOLD ? "grid" : NIGHT && npReach() ? "np" : cards.length ? "shelf" : "grid";
     } else if (zone === "shelf") {
       if (dx < 0 && s === 0 && NIGHT && npReach()) { zone = "np"; npI = 2; }
       else if (dx) s = Math.max(0, Math.min(shelfEls.length - 1, s + dx));
+      else if (FOLD && dy < 0 && gridEls.length) {
+        // below the fold: up goes back to the app above the show, in the dock's last row
+        var bu = shelfEls[s].getBoundingClientRect();
+        g = nearestInRow(Math.floor((gridEls.length - 1) / GRID_COLS), bu.left + bu.width / 2);
+        zone = "grid";
+      }
+      else if (FOLD) { /* nothing below Keep watching */ }
       else if (dy < 0) { if (peopleOn()) toPeople(); else if (!NIGHT && npReach()) zone = "np"; else if (hasQuick()) { zone = "quick"; qi = 0; } }
       else if (dy > 0 && gridEls.length) {
         // land on the app under the show
@@ -1607,14 +1632,24 @@
         var nx = g + dx;
         if (nx >= 0 && nx < gridEls.length && Math.floor(nx / GRID_COLS) === row) g = nx;
       } else if (dy < 0 && row === 0) {
-        if (cards.length) zone = "shelf";
-        else if (npReach()) zone = "np";
+        if (cards.length && !FOLD) zone = "shelf";
+        else if (npReach() && !FOLD) zone = "np";
         else if (peopleOn()) toPeople();
         else if (hasQuick()) zone = "quick";   // offline the sleep and picture buttons are hidden
       } else if (dy < 0) {
         g -= GRID_COLS;
       } else if (row < lastRow) {
         g = Math.min(g + GRID_COLS, gridEls.length - 1);
+      } else if (FOLD && !expanded && dy > 0) {
+        // the dock's last row, below the fold: down slides the page up to Keep watching
+        if (shelfEls.length) {
+          var ga = gridEls[g].getBoundingClientRect(), cx = ga.left + ga.width / 2, bestS = 0, bestD = Infinity;
+          for (var si = 0; si < shelfEls.length; si++) {
+            var sb = shelfEls[si].getBoundingClientRect(), sd = Math.abs(sb.left + sb.width / 2 - cx);
+            if (sd < bestD) { bestD = sd; bestS = si; }
+          }
+          s = bestS; zone = "shelf";
+        } else if (npReach()) { zone = "np"; npI = 0; }
       }
     }
     paintFocus();
@@ -2964,7 +2999,9 @@
       showScene(Math.max(0, SCENES.map(function (s) { return s.own ? "own" : s.id; }).indexOf(first)));
       if (SCENES.length > 1) setInterval(nextScene, SCENE_MS);
       // the clock font must be in before the glass is measured
-      if (document.fonts) document.fonts.load("300 10px Antonio").then(function () { glassShown = ""; clock(); });
+      if (document.fonts) Promise.all([document.fonts.load("300 10px Antonio"),
+        SCENES.some(function (s) { return s.serif; }) ? document.fonts.load('400 10px "DM Serif Display"') : null])
+        .then(function () { glassShown = ""; clock(); });
       refreshWeather();
       setInterval(refreshWeather, WX_EVERY * 60000);
     }

@@ -97,8 +97,9 @@ Add the scene to `home.my_scenes` in `config.json`:
 | `clock.x` ["centre"] | `left`, `centre` or `right`. |
 | `clock.y` [0.14] | Where the top of the clock sits, as a share of the screen's height (0.12 to 0.6). |
 | `clock.size` [0.37] | How big the digits are, as a share of the screen's height (0.2 to 0.45). 0.37 is the built-in size. |
-| `clock.font` ["antonio"] | `antonio` (tall and narrow, the built-in clock) or `inter` (rounder and wider). |
+| `clock.font` ["antonio"] | `antonio` (tall and narrow, the built-in clock), `inter` (rounder and wider) or `serif` (DM Serif Display, like the iPhone lock screen's serif clock). |
 | `clock.weight` [600] | Only with `inter`: 100 (thin) to 900 (heavy). |
+| `clock.fill` ["glass"] | `glass` (frosted, the built-in look) or `solid`: plain white digits with a soft shadow, easier to read over a busy or grey photo. |
 | `date` ["above"] | The date and weather line: `above` the clock or `below` it. It lines up with the clock's side. |
 | `text` ["light"] | `light`: white date, bright glass. `dark`: dark date and a smoky glass, for a pale picture. |
 | `cutout` [false] | `true` only when step 6 made `scene-<id>-fg.webp`. The tool prints it when it did. |

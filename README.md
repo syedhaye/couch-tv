@@ -752,7 +752,7 @@ TV home (tv-home/)      --->  bridge (for shows and picks)               (Androi
   The Classic look's photos are Creative Commons from Wikimedia Commons. Both are listed in
   `tv-home/web/backgrounds/CREDITS.md`.
 - The streaming app logos in `remote/src/app-logos/` belong to their owners.
-- Fonts: Inter and Antonio (both SIL Open Font Licence).
+- Fonts: Inter, Antonio and DM Serif Display (all SIL Open Font Licence; DM Serif Display's licence is in `tv-home/web/fonts/OFL-DM-Serif-Display.txt`).
 - Show data and posters: JustWatch (credit them if you publish anything built on this).
 - Weather: Open-Meteo.
 - The doorbell card and Home Assistant scenes on the TV started in the
