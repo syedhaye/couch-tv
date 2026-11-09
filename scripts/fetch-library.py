@@ -45,7 +45,8 @@ def get(url, binary=False):
 
 
 def strip(s):
-    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(s or "")))).strip()
+    s = re.sub(r"<(script|style)\b[\s\S]*?</\1\s*>", " ", str(s or ""), flags=re.I)
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", s))).strip()
 
 
 def collection(cid):
@@ -61,6 +62,8 @@ def collection(cid):
     for p in sorted(pages.values(), key=lambda p: p.get("index", 0)):
         ii = (p.get("imageinfo") or [{}])[0]
         if ii.get("mime") != "image/jpeg" or not ii.get("thumburl") or not ii.get("width") or not ii.get("height"):
+            continue
+        if not ii["thumburl"].startswith("https://upload.wikimedia.org/"):  # Commons' own picture server only
             continue
         ratio = ii["width"] / ii["height"]
         if ratio < 1.33 or ratio > 2.2 or ii.get("thumbwidth", 0) < 1600:
@@ -84,7 +87,10 @@ def main():
         print("photo library: no tv-home/library.json, nothing to fetch")
         return 0
     colls = [c for c in cfg.get("collections", ["new-york"]) if c in COLLECTIONS]
-    count = max(1, min(30, int(cfg.get("count", 12))))
+    try:
+        count = max(1, min(30, int(cfg.get("count", 12))))
+    except (TypeError, ValueError):
+        count = 12
     try:
         lists = [collection(c) for c in colls]
     except Exception as e:  # no internet, Commons not answering

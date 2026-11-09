@@ -39,7 +39,7 @@ class FireWatch : AccessibilityService() {
     private var recheckPending = false
     private val recheck = Runnable {
         recheckPending = false
-        if (stockInFront && !CrashGuard.standingAside(this)) bringBack()
+        if (stockInFront && !CrashGuard.standingAside(this) && !StockMode.on(this)) bringBack()
     }
 
     override fun onInterrupt() {}
@@ -55,7 +55,7 @@ class FireWatch : AccessibilityService() {
         // in front, so couch-tv goes on top once. Fire OS only: a Google TV can start on an HDMI
         // input or live TV, and that must never be covered.
         if (android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true) &&
-            SystemClock.elapsedRealtime() < BOOT_WINDOW_MS && !CrashGuard.standingAside(this)) {
+            SystemClock.elapsedRealtime() < BOOT_WINDOW_MS && !CrashGuard.standingAside(this) && !StockMode.on(this)) {
             Log.i("couchtv.firewatch", "bound just after a restart: putting couch-tv in front")
             runCatching { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         }
@@ -73,6 +73,7 @@ class FireWatch : AccessibilityService() {
         stockInFront = isStockHome(e.packageName?.toString(), e.className?.toString())
         if (!stockInFront) return
         if (CrashGuard.standingAside(this)) return
+        if (StockMode.on(this)) return   // the Google TV switch is on: the TV's own home stays
         val wait = DEBOUNCE_MS - (System.currentTimeMillis() - last)
         if (wait > 0) {
             // Skipped as a repeat press. Some Google TVs (seen on a Xiaomi) keep the Google home as the

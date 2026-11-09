@@ -86,7 +86,7 @@
 
     <application
         android:name=".App"
-        android:label="Home"
+        android:label="My Home"
         android:icon="@drawable/icon"
         android:banner="@drawable/banner"
         android:theme="@style/Home"

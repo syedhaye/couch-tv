@@ -22,10 +22,16 @@
   };
   var KEY = "tvhome.photos";
 
+  // Commons' credits are wiki text anyone can edit: read them in an inert document (nothing in it
+  // runs or loads) and keep only the words
   function strip(html) {
-    var d = document.createElement("div");
-    d.innerHTML = String(html || "");
-    return (d.textContent || "").replace(/\s+/g, " ").trim();
+    var s = String(html || ""), txt;
+    try {
+      var doc = new DOMParser().parseFromString(s, "text/html");
+      Array.prototype.forEach.call(doc.querySelectorAll("script,style"), function (n) { n.remove(); });
+      txt = doc.body.textContent;
+    } catch (e) { txt = s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]*>/g, " "); }
+    return String(txt || "").replace(/\s+/g, " ").trim();
   }
   function load() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } }
   function save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
@@ -51,6 +57,7 @@
       return Object.keys(pages).map(function (k) { return pages[k]; }).map(function (p) {
         var ii = p.imageinfo && p.imageinfo[0];
         if (!ii || ii.mime !== "image/jpeg" || !ii.thumburl || !ii.width || !ii.height) return null;
+        if (!/^https:\/\/upload\.wikimedia\.org\//.test(ii.thumburl)) return null;   // Commons' own picture server only
         var ratio = ii.width / ii.height;
         if (ratio < 1.33 || ratio > 2.2 || (ii.thumbwidth || 0) < 1600) return null;
         var m = ii.extmetadata || {}, v = function (x) { return m[x] && m[x].value; };

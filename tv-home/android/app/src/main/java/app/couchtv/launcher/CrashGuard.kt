@@ -76,7 +76,7 @@ object CrashGuard {
      * Opens the TV's own home screen (Google TV, Android TV, Fire TV or a maker's own), never this
      * app. False when the TV has no other home, then the caller carries on as the home.
      */
-    fun openStockHome(c: Context): Boolean {
+    fun openStockHome(c: Context, why: String = "couch-tv crashed twice lately"): Boolean {
         val homes = runCatching {
             c.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
         }.getOrDefault(emptyList())
@@ -91,7 +91,7 @@ object CrashGuard {
         return runCatching {
             c.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                 .setClassName(pick.packageName, pick.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            Log.w("couchtv.guard", "couch-tv crashed twice lately: the TV's own home (${pick.packageName}) is on screen for a few minutes")
+            Log.w("couchtv.guard", "$why: the TV's own home (${pick.packageName}) is on screen")
             true
         }.getOrDefault(false)
     }

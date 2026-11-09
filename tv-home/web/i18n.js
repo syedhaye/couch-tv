@@ -253,6 +253,7 @@
     quick_look: "Look switch",
     quick_input: "Input list",
     quick_screensaver: "Screensaver",
+    quick_googletv: "Google TV",
     no_screensaver: "This TV has no screensaver to open.",
     no_dream: "The TV did not start the photos. Try again, or restart the TV if it keeps happening.",
     ambient_head: "Screensaver",

@@ -86,6 +86,13 @@ class MainActivity : Activity() {
             finish()
             return
         }
+        // The Google TV switch (StockMode.kt): "My Home" from the app row, or apply.sh, turns it
+        // off; while it is on, the TV's own home is the home.
+        if (StockMode.fromAppRow(intent) || StockMode.fromSetup(intent)) StockMode.set(this, false)
+        if (StockMode.on(this) && CrashGuard.openStockHome(this, "the Google TV switch is on")) {
+            finish()
+            return
+        }
         CrashGuard.started(this)
         main.postDelayed({ CrashGuard.settled(this) }, CrashGuard.SETTLE_MS)
         // Lets a computer inspect the page over ADB (chrome://inspect). Only reachable with ADB access.
@@ -115,6 +122,10 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // The Google TV switch: back from the app row (or apply.sh) turns it off; anything else
+        // that brings this home forward while it is on hands over to the TV's own home.
+        if (StockMode.fromAppRow(intent) || StockMode.fromSetup(intent)) StockMode.set(this, false)
+        else if (StockMode.on(this) && CrashGuard.openStockHome(this, "the Google TV switch is on")) return
         if (intent.hasExtra("bridge") || intent.hasExtra("config_b64")) {
             readExtras(intent)
             pageReady = false
@@ -516,6 +527,16 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun openSettings(): Boolean = start(Intent(Settings.ACTION_SETTINGS))
+
+        /** The home's "Google TV" quick button: the TV's own home from now on, until "My Home" is
+         *  opened from its app row (StockMode.kt). False, and nothing changes, on a TV with no other home. */
+        @JavascriptInterface
+        fun googleTv(): Boolean {
+            val me = this@MainActivity
+            StockMode.set(me, true)
+            main.post { if (!CrashGuard.openStockHome(me, "the Google TV switch was pressed")) StockMode.set(me, false) }
+            return true
+        }
 
         /** Holding OK on an app, "Uninstall": Android's own remove dialog. Never ourselves.
          *  On TVs with no remove dialog, falls back to the app's details screen (it has Uninstall).

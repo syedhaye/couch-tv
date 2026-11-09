@@ -24,6 +24,7 @@ class KeyWatch : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!isGear(event)) return false   // not ours: Android gets it as usual
+        if (StockMode.on(this)) return false   // the Google TV switch is on: the TV's own gear button
         Log.i("couchtv-keywatch", "gear keyCode=${event.keyCode} scan=${event.scanCode} action=${event.action}")
         if (event.action == KeyEvent.ACTION_UP && event.repeatCount == 0) {
             runCatching {
