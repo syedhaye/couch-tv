@@ -28,8 +28,9 @@ UA = "couch-tv-photo-library/1.0 (https://github.com/Seagey/couch-tv)"
 FP = 'incategory:"Featured pictures on Wikimedia Commons"'
 # the same searches as tv-home/web/photos.js: keep the two in step
 COLLECTIONS = {
-    # no quoted phrases inside an OR group: Commons' search then finds nothing at all
-    "new-york": FP + " (Manhattan OR Brooklyn OR NYC)",
+    # one plain word: an OR group with a quoted phrase finds nothing, and (Manhattan OR Brooklyn OR NYC)
+    # finds birds from the city parks; NYC alone finds the city itself (tested live, November 2026)
+    "new-york": FP + " NYC",
     "landscapes": FP + " (landscape OR mountains OR lake OR valley OR fjord OR glacier)",
     "culture": FP + " (temple OR mosque OR cathedral OR festival OR market OR palace OR old town)",
     "art": FP + " (painting OR mural OR fresco OR museum)",
