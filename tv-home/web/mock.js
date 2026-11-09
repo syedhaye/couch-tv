@@ -23,6 +23,7 @@
 //   down                the bridge is not answering      offline=1   the saved copy, no bridge at all
 //   reset=1             forget everything this preview saved (orders, people, the look, Home settings)
 //   wx=card             home.weather "card", with pretend weather (12°, clear, five hours)
+//   photos=1            home.photos, local Commons photos standing in for fresh ones (builtin=0: only those)
 //   shelf=below         home.shelf "below": Keep watching under the dock, below the screen's edge
 //   ha=1                smart home: a pretend Home Assistant with two rooms and three scenes
 //                       (ha=down: it is not answering; ha=scenes: scenes only, no rooms)
@@ -67,6 +68,16 @@
   if (arg("scenes")) cfg.home.scenes = arg("scenes").split(",");
   if (arg("secs")) cfg.home.scene_seconds = parseInt(arg("secs"), 10);
   if (arg("myscenes")) try { cfg.home.my_scenes = JSON.parse(arg("myscenes")); } catch (e) {}
+  // ?photos=1: home.photos, with the Classic look's own Commons photos standing in for a day's
+  // fresh photos (their real credits, from backgrounds/CREDITS.md); &builtin=0: those alone
+  if (arg("photos")) {
+    cfg.home.photos = { builtin: arg("builtin") !== "0" };
+    window.MOCK_PHOTOS = [
+      { id: "m1", src: "backgrounds/grose-valley@2x.jpg", title: "Grose Valley, Blue Mountains", by: "Diliff", lic: "CC BY-SA 3.0" },
+      { id: "m2", src: "backgrounds/tessellated-pavement@2x.jpg", title: "Tessellated Pavement Sunrise", by: "JJ Harrison", lic: "CC BY-SA 2.5" },
+      { id: "m3", src: "backgrounds/vang-vieng-sunset@2x.jpg", title: "Sunset at Vang Vieng", by: "Basile Morin", lic: "CC BY-SA 4.0" }
+    ];
+  }
   if (arg("glass")) cfg.home.glass = arg("glass");
   if (arg("moving")) cfg.home.moving_tiles = arg("moving") !== "off";
   if (arg("icons") === "glass") cfg.home.glass_icons = true;

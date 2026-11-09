@@ -39,6 +39,10 @@ EXTRA=""
 [ -n "${BRIDGE_URLS:-}" ] && EXTRA="-PbridgeUrls=$BRIDGE_URLS"
 [ -n "${UPDATE_REPO+set}" ] && EXTRA="$EXTRA -PupdateRepo=$UPDATE_REPO"
 
+# The built-in photo library (home.photos): fetched from Wikimedia Commons when tv-home/library.json
+# asks for one. Without internet the build carries on without it.
+[ -f "$ROOT/tv-home/library.json" ] && { python3 "$ROOT/scripts/fetch-library.py" || true; }
+
 echo "Building the TV home (settings built in: $CONFIG)"
 "$GW" -p "$ROOT/tv-home/android" --no-daemon -q clean assembleRelease "-PconfigJson=$CONFIG" $EXTRA
 cp "$ROOT/tv-home/android/app/build/outputs/apk/release/app-release.apk" "$ROOT/dist/couch-tv-home.apk"

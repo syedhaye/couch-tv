@@ -44,3 +44,6 @@ tv-home/web/backgrounds/mine/*
 
 # Your own app logos for the Samsung home (samsung/build.py)
 samsung/my-logos/
+
+# The built-in photo library, fetched by every build (scripts/fetch-library.py)
+tv-home/web/backgrounds/library/

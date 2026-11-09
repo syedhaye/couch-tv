@@ -52,3 +52,12 @@ to edit.
 4. Move the clock so the scenery covers only the lower part of the digits: `.s-<id> .gclock`
    (`top`, `font-size`) and `.scene-<id> .date` in `../app.css`. Leave at least the top 60% of
    every digit clear so the time is easy to read.
+
+## Fresh photos and the built-in photo library (home.photos)
+
+With `home.photos` on, the Night look also shows photographs from Wikimedia Commons: Commons
+"featured pictures", each under the free licence its photographer chose (Creative Commons or public
+domain). They are not stored in this repository. The TV fetches them from Commons
+(`tv-home/web/photos.js`), and a build can fetch a few into the app (`scripts/fetch-library.py`,
+into `backgrounds/library/`, which git ignores). Each one is shown on screen with its title,
+photographer and licence, as those licences ask.

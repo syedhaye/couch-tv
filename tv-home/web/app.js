@@ -37,6 +37,9 @@
   // home.weather "card" (Night look): the weather under the clock, phone-weather style (place, now,
   // feels like, high and low, the next hours), instead of the short line next to the date
   var WXCARD = false;
+  // home.photos (Night look): fresh featured photos from Wikimedia Commons as extra scenes (photos.js);
+  // null when off
+  var ONLINE = null;
   // Glass panels ("off", "on", or "lite": no blur, for slower TVs) and the video background, from
   // Home settings, then home.glass and home.video_url. Both are off unless someone switches them on.
   var GLASS = "off", GLASS_ICONS = false, VIDEO_ON = false, VIDEO_URL = "";
@@ -219,6 +222,8 @@
     FOLD = NIGHT && (HOME.shelf === "below" || /[?&]shelf=below/.test(Q));
     document.documentElement.classList.toggle("fold", FOLD);
     WXCARD = NIGHT && (HOME.weather === "card" || /[?&]wx=card/.test(Q));
+    ONLINE = !NIGHT || !window.PHOTOS_ONLINE ? null : HOME.photos === true ? {} :
+      HOME.photos && typeof HOME.photos === "object" && HOME.photos.enabled !== false ? HOME.photos : null;
     document.documentElement.classList.toggle("wxcard-on", WXCARD);
     GLASS = glassSetting();
     document.documentElement.classList.toggle("glass", GLASS !== "off");
@@ -251,10 +256,9 @@
       if (typeof p === "string" && HIDDEN.indexOf(p) < 0) HIDDEN.push(p);
     });
     HIDDEN_TV = (Array.isArray(ST.hidden_apps) ? ST.hidden_apps : []).filter(function (p) { return typeof p === "string"; });
-    SCENE_LIB = BUILT_IN.concat(myScenes(HOME.my_scenes));
-    var st = sceneState();
-    SCENES = st.order.filter(function (id) { return st.off.indexOf(id) < 0; }).map(sceneById).filter(Boolean);
-    if (!SCENES.length) SCENES = [SCENE_LIB[0]];
+    SCENE_LIB = BUILT_IN.concat(myScenes(HOME.my_scenes))
+      .concat(ONLINE ? libraryScenes().concat(onlineScenes(window.PHOTOS_ONLINE.cached())) : []);
+    pickScenes();
     SCENE_MS = Math.max(5, parseInt(ST.scene_seconds || HOME.scene_seconds, 10) || 20) * 1000;
     var people = CFG.people || [{ id: "person1", name: "Person 1" }, { id: "person2", name: "Person 2" }];
     // people added, renamed or removed in Home settings with no bridge to keep them
@@ -482,7 +486,35 @@
     });
     return out;
   }
-  function sceneClass(s) { return s.own ? "own" : s.mine ? "mine" : s.id; }
+  function sceneClass(s) { return s.own ? "own" : s.mine ? "mine" : s.online ? "online" : s.id; }
+
+  // Fresh photos (home.photos, photos.js): no cut-out and no glass copy, so the clock's fill is
+  // the photo itself, frosted in app.css (.s-online), with its credit at the bottom right.
+  // lib: the built-in library (backgrounds/library/library.js, scripts/fetch-library.py), which a
+  // day's fresh photos never replace
+  function onlineScenes(items, lib) {
+    return (items || []).filter(function (it) { return it && it.id && it.src; }).map(function (it) {
+      return { id: "w-" + it.id, src: it.src, online: true, lib: !!lib, fg: false, glass: false,
+        title: it.title || "", by: it.by || "", lic: it.lic || "" };
+    });
+  }
+  function libraryScenes() { return Array.isArray(window.PHOTO_LIBRARY) ? onlineScenes(window.PHOTO_LIBRARY, true) : []; }
+  // Which scenes take turns, from SCENE_LIB and the settings (sceneState below)
+  function pickScenes() {
+    var st = sceneState();
+    SCENES = st.order.filter(function (id) { return st.off.indexOf(id) < 0; }).map(sceneById).filter(Boolean);
+    if (!SCENES.length) SCENES = [SCENE_LIB[0]];
+  }
+  // A new day's photos came in: rebuild the scenes and go on from the first one
+  function applyOnline(items) {
+    var keep = SCENE_LIB.filter(function (s) { return !s.online || s.lib; });
+    SCENE_LIB = keep.concat(onlineScenes(items));
+    pickScenes();
+    $("scenes").innerHTML = "";
+    buildScenes();
+    scene = 0;
+    showScene(0);
+  }
 
   // The household's own photos (Home settings, "Your photos") are scenes too, with no cut-out and
   // no glass copy: the clock's fill is the photo itself, frosted in app.css (.s-own).
@@ -507,7 +539,9 @@
       // are listed, otherwise after the built-in ones
       var lib = SCENE_LIB.map(function (x) { return x.id; }), builtIn = BUILT_IN.map(function (x) { return x.id; });
       var pick = (HOME.scenes || []).filter(function (id, i, a) { return lib.indexOf(id) >= 0 && a.indexOf(id) === i; });
-      if (!pick.length) pick = builtIn;
+      // home.photos.builtin false: only the fresh photos (and your own scenes) take turns, once there are some
+      var onlineOnly = ONLINE && ONLINE.builtin === false && SCENE_LIB.some(function (x) { return x.online; });
+      if (!pick.length && !onlineOnly) pick = builtIn;
       order = pick.concat(ids.filter(function (id) { return pick.indexOf(id) < 0; }));
       off = builtIn.filter(function (id) { return pick.indexOf(id) < 0; });
     }
@@ -531,6 +565,13 @@
         el.querySelector(".sbg").onerror = function () { lostScene(s); };
         var fg = el.querySelector(".fg");
         if (fg) fg.onerror = function () { fg.style.display = "none"; };   // "cutout": true but no file: the clock stays in front
+      }
+      if (s.online) {   // a fresh photo: its title, photographer and licence, as its licence asks
+        var cr = document.createElement("p");
+        cr.className = "scredit";
+        cr.textContent = [s.title, s.by, s.lic ? s.lic + " · Wikimedia Commons" : ""].filter(Boolean).join("  ·  ");
+        el.appendChild(cr);
+        el.querySelector(".sbg").onerror = function () { lostScene(s); };   // gone from Commons, or no internet
       }
       box.appendChild(el);
       return el;
@@ -681,7 +722,7 @@
   }
 
   // the settings screen covers the scenes, so they wait (one less thing for a small TV stick to draw)
-  function nextScene() { if (zone !== "settings") showScene(nextFrom(scene)); }
+  function nextScene() { if (zone !== "settings" && SCENES.length > 1) showScene(nextFrom(scene)); }
 
   // The bridge's reading for the place in config.json, or straight from Open-Meteo with no bridge
   // or when Home settings chose another place. Hidden when Home settings switched the weather off.
@@ -2119,9 +2160,10 @@
     st.order.forEach(function (id) {
       var sc = sceneById(id);
       if (!sc) return;
-      var label = sc.own ? t("scene_photo", { n: sc.n }) : sc.mine ? sc.name || t("scene_mine", { n: sc.n }) : t("scene_" + id);
+      var label = sc.own ? t("scene_photo", { n: sc.n }) : sc.mine ? sc.name || t("scene_mine", { n: sc.n }) :
+        sc.online ? (sc.title || t("scene_online")).slice(0, 50) : t("scene_" + id);
       rows.push({ kind: "check", key: "scene:" + id, label: label,
-        thumb: sc.own ? sc.src : "backgrounds/" + sc.photo + ".jpg", checked: st.off.indexOf(id) < 0,
+        thumb: sc.own || sc.online ? sc.src : "backgrounds/" + sc.photo + ".jpg", checked: st.off.indexOf(id) < 0,
         act: function () { toggleScene(id); }, move: function (d) { moveScene(id, d); } });
     });
     var secs = Math.round(SCENE_MS / 1000);
@@ -3056,7 +3098,12 @@
       // photos; ?scene=<id>: one of your own scenes)
       var first = (Q.match(/[?&]scene=([a-z0-9]+)/) || [])[1];
       showScene(Math.max(0, SCENES.map(function (s) { return s.own ? "own" : s.id; }).indexOf(first)));
-      if (SCENES.length > 1) setInterval(nextScene, SCENE_MS);
+      setInterval(nextScene, SCENE_MS);   // nextScene() waits while there is only one scene
+      // fresh photos: the TV's list straight away (readConfig), a new one once a day
+      if (ONLINE) {
+        window.PHOTOS_ONLINE.refresh(ONLINE, applyOnline);
+        setInterval(function () { window.PHOTOS_ONLINE.refresh(ONLINE, applyOnline); }, 6 * 3600000);
+      }
       // the clock font must be in before the glass is measured
       if (document.fonts) Promise.all([document.fonts.load("300 10px Antonio"),
         SCENES.some(function (s) { return s.serif; }) ? document.fonts.load('400 10px "DM Serif Display"') : null])

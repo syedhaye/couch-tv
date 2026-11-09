@@ -97,6 +97,7 @@
     wx_feels: "Feels like {t}",
     wx_hilo: "H:{hi}  L:{lo}",
     wx_now: "Now",
+    scene_online: "Fresh photo",
 
     // ---- the gear tile ----
     gear_home: "Home settings",

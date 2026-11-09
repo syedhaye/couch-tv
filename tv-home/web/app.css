@@ -416,6 +416,16 @@ html.still .tile.focus .face, html.still .tile.focus .face::after { animation: n
 .s-own .shade { background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0) 45%); }
 .s-own .gclock .fill { filter: brightness(1.4) saturate(1.15); opacity: 0.88; }
 .s-own .gclock .rim { -webkit-text-stroke-color: rgba(255, 255, 255, 0.7); }
+/* fresh photos (home.photos): frosted like the household's own, with the credit bottom right */
+.s-online .shade { background: linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0) 45%); }
+.s-online .gclock .fill { filter: brightness(1.4) saturate(1.15); opacity: 0.88; }
+.s-online .gclock .rim { -webkit-text-stroke-color: rgba(255, 255, 255, 0.7); }
+.scredit {
+  position: absolute; right: var(--safe-x); bottom: 13.5rem; max-width: 56rem; margin: 0;
+  font-size: 1.125rem; line-height: 1.5rem; font-weight: 500; color: rgba(255, 255, 255, 0.74);
+  text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 0.0625rem 0.75rem rgba(0, 0, 0, 0.6);
+}
 
 /* ================= your own scenes (home.my_scenes, made with tools/make-scene.py) =================
    app.js sets --my-top and --my-size (the clock's top and font size, from config.json) on the scene
