@@ -22,6 +22,8 @@
 //   newapp=1            an app turns up that this TV has not seen before (the New dot)
 //   down                the bridge is not answering      offline=1   the saved copy, no bridge at all
 //   reset=1             forget everything this preview saved (orders, people, the look, Home settings)
+//   wx=card             home.weather "card", with pretend weather (12°, clear, five hours)
+//   shelf=below         home.shelf "below": Keep watching under the dock, below the screen's edge
 //   ha=1                smart home: a pretend Home Assistant with two rooms and three scenes
 //                       (ha=down: it is not answering; ha=scenes: scenes only, no rooms)
 //   update=1            Home settings, Updates, with a pretend 0.4 waiting (update=latest: none
@@ -40,7 +42,7 @@
 
   // ---------- the settings config.js would carry ----------
   var NAMES = ["Alex", "Sam", "Jordan", "Riley", "Casey", "Morgan", "Taylor", "Jamie"];
-  var cfg = { weather: { lat: -33.8688, lon: 151.2093, place: "Sydney", timezone: "Australia/Sydney" },
+  var cfg = { weather: { lat: -33.8688, lon: 151.2093, place: arg("place") || "Sydney", timezone: "Australia/Sydney" },
     default_tv: "living-room", tvs: [{ id: "living-room", name: "Living room" }], home: {} };
   var n = arg("people");
   if (n !== null) {
@@ -201,6 +203,12 @@
         if (down) return reject(new Error("The computer isn't answering."));
         // Now playing (#31): ?music=1, a song that previous and next step through, play and pause toggle
         if (path.indexOf("/api/music") === 0) return resolve({ ok: true, music: arg("music") ? mockSong() : null });
+        // ?wx=card: SYNTHETIC weather for the weather card (now, feels like, high and low, five hours)
+        if (path.indexOf("/api/weather") === 0 && arg("wx")) {
+          var h0 = new Date().getHours();
+          return resolve({ temp: 12, code: 0, is_day: false, feels: 8, hi: 16, lo: 9,
+            hours: [11, 11, 11, 10, 10].map(function (tmp, i) { return { hour: (h0 + 1 + i) % 24, temp: tmp, code: i > 2 ? 2 : 0, is_day: false }; }) });
+        }
         if (path.indexOf("/api/key") === 0) {
           var k = body && body.key;
           if (k === "play_pause") songPlaying = !songPlaying;

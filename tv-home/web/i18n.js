@@ -93,6 +93,10 @@
     wx_showers: "Showers",
     wx_heavy_showers: "Heavy showers",
     wx_storms: "Storms",
+    // the weather card (home.weather "card"); other languages fall back to these
+    wx_feels: "Feels like {t}",
+    wx_hilo: "H:{hi}  L:{lo}",
+    wx_now: "Now",
 
     // ---- the gear tile ----
     gear_home: "Home settings",

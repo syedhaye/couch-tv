@@ -34,6 +34,9 @@
   // home.shelf "below" (Night look): Keep watching sits under the dock, below the screen's edge;
   // pressing down from the dock slides the page up to it (app.css, "Keep watching below the fold")
   var FOLD = false;
+  // home.weather "card" (Night look): the weather under the clock, phone-weather style (place, now,
+  // feels like, high and low, the next hours), instead of the short line next to the date
+  var WXCARD = false;
   // Glass panels ("off", "on", or "lite": no blur, for slower TVs) and the video background, from
   // Home settings, then home.glass and home.video_url. Both are off unless someone switches them on.
   var GLASS = "off", GLASS_ICONS = false, VIDEO_ON = false, VIDEO_URL = "";
@@ -215,6 +218,8 @@
     document.documentElement.classList.toggle("theme-night", NIGHT);
     FOLD = NIGHT && (HOME.shelf === "below" || /[?&]shelf=below/.test(Q));
     document.documentElement.classList.toggle("fold", FOLD);
+    WXCARD = NIGHT && (HOME.weather === "card" || /[?&]wx=card/.test(Q));
+    document.documentElement.classList.toggle("wxcard-on", WXCARD);
     GLASS = glassSetting();
     document.documentElement.classList.toggle("glass", GLASS !== "off");
     document.documentElement.classList.toggle("glass-lite", GLASS === "lite");
@@ -236,6 +241,12 @@
     DOCK_APPS = Math.max(1, Math.min(10, parseInt(HOME.dock_size, 10) || 10));
     if (smartOn()) DOCK_APPS = Math.min(DOCK_APPS, 9);   // the Smart home tile takes one place in the dock
     CLOCK24 = clock24();
+    // home.app_order: this house's apps first, in this order, before the built-in list (an order
+    // made later with the remote or the phone still wins over both)
+    if (Array.isArray(HOME.app_order)) {
+      var own = HOME.app_order.filter(function (p, i, a) { return typeof p === "string" && a.indexOf(p) === i; });
+      APP_ORDER = own.concat(APP_ORDER.filter(function (p) { return own.indexOf(p) < 0; }));
+    }
     (Array.isArray(HOME.hide_packages) ? HOME.hide_packages : []).forEach(function (p) {
       if (typeof p === "string" && HIDDEN.indexOf(p) < 0) HIDDEN.push(p);
     });
@@ -403,8 +414,9 @@
     var day = d.toLocaleDateString(loc, { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
     day = day.charAt(0).toUpperCase() + day.slice(1);   // "lunes 27 de octubre" starts a line on screen
     var w = NIGHT && WX_SHOW && data.weather && data.weather.temp != null ? data.weather : null;
-    $("date").innerHTML = '<span class="dline">' + esc(day) + (w ? '<span class="wx">' + wxIcon(w) + esc(tempText(w.temp)) +
+    $("date").innerHTML = '<span class="dline">' + esc(day) + (w && !WXCARD ? '<span class="wx">' + wxIcon(w) + esc(tempText(w.temp)) +
       '<span class="ww"> ' + esc(wxText(w)) + "</span></span>" : "") + "</span>";
+    renderWxCard(WXCARD ? w : null);
     fitDate();
     document.body.classList.toggle("night", h >= 21 || h < 6);
     if (NIGHT) glassClock(hm);
@@ -686,11 +698,58 @@
     82: "wx_heavy_showers", 95: "wx_storms", 96: "wx_storms", 99: "wx_storms" };
   function weatherDirect() {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WXCFG.lat + "&longitude=" + WXCFG.lon +
-      "&current=temperature_2m,weather_code,is_day&timezone=" + encodeURIComponent(WXCFG.timezone || "auto") + "&forecast_days=1";
+      "&current=temperature_2m,apparent_temperature,weather_code,is_day" +
+      (WXCARD ? "&hourly=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min" : "") +
+      "&timezone=" + encodeURIComponent(WXCFG.timezone || "auto") + "&forecast_days=" + (WXCARD ? 2 : 1);
     return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
       var c = j.current, code = Math.round(c.weather_code);
-      return { temp: Math.round(c.temperature_2m), code: code, text: "", is_day: !!c.is_day };
+      var out = { temp: Math.round(c.temperature_2m), code: code, text: "", is_day: !!c.is_day };
+      if (isFinite(c.apparent_temperature)) out.feels = Math.round(c.apparent_temperature);
+      var dl = j.daily;
+      if (dl && dl.temperature_2m_max && isFinite(dl.temperature_2m_max[0])) {
+        out.hi = Math.round(dl.temperature_2m_max[0]); out.lo = Math.round(dl.temperature_2m_min[0]);
+      }
+      // the next five hours after this one, local times as Open-Meteo gives them ("2026-11-08T21:00")
+      var hr = j.hourly;
+      if (hr && hr.time && c.time) {
+        var at = hr.time.indexOf(String(c.time).slice(0, 13) + ":00");
+        if (at >= 0) {
+          out.hours = [];
+          for (var i = at + 1; i < Math.min(hr.time.length, at + 6); i++) {
+            out.hours.push({ hour: parseInt(hr.time[i].slice(11, 13), 10), temp: Math.round(hr.temperature_2m[i]),
+              code: Math.round(hr.weather_code[i]), is_day: !!hr.is_day[i] });
+          }
+        }
+      }
+      return out;
     });
+  }
+
+  // home.weather "card": under the clock, like a phone's weather app. Whatever the weather call
+  // did not give (a bridge's weather has no hours) is simply left out.
+  function hourLabel(h) {
+    if (CLOCK24) return (h < 10 ? "0" : "") + h;
+    return (h % 12 || 12) + (h < 12 ? t("am") : t("pm")).toUpperCase();
+  }
+  function renderWxCard(w) {
+    var el = $("wxcard");
+    if (!el) return;
+    if (!w) { el.classList.remove("on"); el.innerHTML = ""; return; }
+    var html = '<div class="wxmain">' + (WXCFG.place ? '<p class="wxplace">' + esc(WXCFG.place) + "</p>" : "");
+    html += '<p class="wxnow">' + wxIcon(w) + "<b>" + esc(tempText(w.temp)) + "</b><span>" + esc(wxText(w)) + "</span></p>";
+    var sub = [];
+    if (w.feels != null) sub.push(t("wx_feels", { t: tempText(w.feels) }));
+    if (w.hi != null && w.lo != null) sub.push(t("wx_hilo", { hi: tempText(w.hi), lo: tempText(w.lo) }));
+    if (sub.length) html += '<p class="wxsub">' + esc(sub.join("   ·   ")) + "</p>";
+    html += "</div>";
+    if (w.hours && w.hours.length) {
+      html += '<div class="wxhours"><span><i>' + esc(t("wx_now")) + "</i>" + wxIcon(w) + "<b>" + esc(tempText(w.temp)) + "</b></span>" +
+        w.hours.map(function (x) {
+          return "<span><i>" + esc(hourLabel(x.hour)) + "</i>" + wxIcon(x) + "<b>" + esc(tempText(x.temp)) + "</b></span>";
+        }).join("") + "</div>";
+    }
+    el.innerHTML = html;
+    el.classList.add("on");
   }
 
   function hero(it) {
