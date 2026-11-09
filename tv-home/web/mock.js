@@ -78,9 +78,9 @@
     if (arg("colls")) cfg.home.photos.collections = arg("colls").split(",");
     // photos=live: the real Commons calls (photos.js), for testing them with a stand-in server
     if (arg("photos") !== "live") window.MOCK_PHOTOS = [
-      { id: "m1", src: "backgrounds/grose-valley@2x.jpg", title: "Grose Valley, Blue Mountains", by: "Diliff", lic: "CC BY-SA 3.0" },
-      { id: "m2", src: "backgrounds/tessellated-pavement@2x.jpg", title: "Tessellated Pavement Sunrise", by: "JJ Harrison", lic: "CC BY-SA 2.5" },
-      { id: "m3", src: "backgrounds/vang-vieng-sunset@2x.jpg", title: "Sunset at Vang Vieng", by: "Basile Morin", lic: "CC BY-SA 4.0" }
+      { id: "m1", src: "backgrounds/grose-valley.jpg", title: "Grose Valley, Blue Mountains", by: "Diliff", lic: "CC BY-SA 3.0" },
+      { id: "m2", src: "backgrounds/tessellated-pavement.jpg", title: "Tessellated Pavement Sunrise", by: "JJ Harrison", lic: "CC BY-SA 2.5" },
+      { id: "m3", src: "backgrounds/vang-vieng-sunset.jpg", title: "Sunset at Vang Vieng", by: "Basile Morin", lic: "CC BY-SA 4.0" }
     ];
   }
   if (arg("glass")) cfg.home.glass = arg("glass");
