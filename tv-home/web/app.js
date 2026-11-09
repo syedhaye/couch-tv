@@ -496,7 +496,7 @@
   // day's fresh photos never replace
   function onlineScenes(items, lib) {
     // only Commons' own picture server, or the library inside the app
-    var okSrc = function (u) { return /^(https:\/\/upload\.wikimedia\.org\/|backgrounds\/)/.test(String(u)); };
+    var okSrc = function (u) { return /^(https:\/\/(upload|thumb)\.wikimedia\.org\/|backgrounds\/)/.test(String(u)); };
     return (items || []).filter(function (it) { return it && it.id && okSrc(it.src); }).map(function (it) {
       return { id: "w-" + it.id, src: it.src, online: true, lib: !!lib, fg: false, glass: false,
         title: it.title || "", by: it.by || "", lic: it.lic || "" };

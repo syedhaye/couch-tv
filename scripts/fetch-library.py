@@ -28,13 +28,26 @@ UA = "couch-tv-photo-library/1.0 (https://github.com/Seagey/couch-tv)"
 FP = 'incategory:"Featured pictures on Wikimedia Commons"'
 # the same searches as tv-home/web/photos.js: keep the two in step
 COLLECTIONS = {
-    "new-york": FP + ' ("New York City" OR Manhattan OR Brooklyn OR "Central Park" OR "Brooklyn Bridge")',
+    # no quoted phrases inside an OR group: Commons' search then finds nothing at all
+    "new-york": FP + " (Manhattan OR Brooklyn OR NYC)",
     "landscapes": FP + " (landscape OR mountains OR lake OR valley OR fjord OR glacier)",
     "culture": FP + " (temple OR mosque OR cathedral OR festival OR market OR palace OR old town)",
     "art": FP + " (painting OR mural OR fresco OR museum)",
     "cities": FP + " (skyline OR cityscape OR panorama city OR night city)",
     "nature": FP + " (forest OR waterfall OR coast OR desert OR aurora)",
 }
+
+
+# Commons serves its picture copies from these two hosts (thumb. since 2026); nothing else is kept
+HOST = re.compile(r"^https://(upload|thumb)\.wikimedia\.org/")
+
+
+def too_old(cid, date):
+    """Old archive photographs (black and white, 1900s): skipped, except in art. No date: kept."""
+    if cid == "art":
+        return False
+    m = re.search(r"\b(1[5-9]\d\d|20\d\d)\b", strip(date))
+    return bool(m) and int(m.group(1)) < 1960
 
 
 def get(url, binary=False):
@@ -54,7 +67,7 @@ def collection(cid):
     params = {
         "action": "query", "format": "json", "generator": "search", "gsrnamespace": "6", "gsrlimit": "50",
         "gsrsearch": q, "prop": "imageinfo", "iiprop": "url|size|mime|extmetadata", "iiurlwidth": "1920",
-        "iiextmetadatafilter": "Artist|LicenseShortName|ObjectName",
+        "iiextmetadatafilter": "Artist|LicenseShortName|ObjectName|DateTimeOriginal",
     }
     pages = get(API + "?" + urllib.parse.urlencode(params)).get("query", {}).get("pages", {})
     out = []
@@ -63,7 +76,7 @@ def collection(cid):
         ii = (p.get("imageinfo") or [{}])[0]
         if ii.get("mime") != "image/jpeg" or not ii.get("thumburl") or not ii.get("width") or not ii.get("height"):
             continue
-        if not ii["thumburl"].startswith("https://upload.wikimedia.org/"):  # Commons' own picture server only
+        if not HOST.match(ii["thumburl"]):  # Commons' own picture servers only
             continue
         ratio = ii["width"] / ii["height"]
         if ratio < 1.33 or ratio > 2.2 or ii.get("thumbwidth", 0) < 1600:
@@ -71,7 +84,7 @@ def collection(cid):
         m = ii.get("extmetadata") or {}
         val = lambda k: (m.get(k) or {}).get("value")
         lic = strip(val("LicenseShortName"))
-        if not lic:
+        if not lic or too_old(cid, val("DateTimeOriginal")):
             continue
         title = strip(val("ObjectName")) or re.sub(r"\.[a-z]+$", "", strip(p.get("title", "")).replace("File:", ""), flags=re.I)
         out.append({"id": "lib%d" % p["pageid"], "src": ii["thumburl"], "coll": cid,

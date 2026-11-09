@@ -13,7 +13,8 @@
   var API = "https://commons.wikimedia.org/w/api.php";
   var FP = 'incategory:"Featured pictures on Wikimedia Commons"';
   var COLLECTIONS = {
-    "new-york": FP + ' ("New York City" OR Manhattan OR Brooklyn OR "Central Park" OR "Brooklyn Bridge")',
+    // no quoted phrases inside an OR group: Commons' search then finds nothing at all
+    "new-york": FP + " (Manhattan OR Brooklyn OR NYC)",
     "landscapes": FP + " (landscape OR mountains OR lake OR valley OR fjord OR glacier)",
     "culture": FP + " (temple OR mosque OR cathedral OR festival OR market OR palace OR old town)",
     "art": FP + " (painting OR mural OR fresco OR museum)",
@@ -21,6 +22,15 @@
     "nature": FP + " (forest OR waterfall OR coast OR desert OR aurora)"
   };
   var KEY = "tvhome.photos";
+  // Commons serves its picture copies from these two hosts (thumb. since 2026); nothing else is shown
+  var HOST = /^https:\/\/(upload|thumb)\.wikimedia\.org\//;
+  // Old archive photographs (black and white, 1900s) do not suit a living room: skipped, except in art.
+  // Taken from the photo's own date; a photo with no date is kept.
+  function tooOld(id, date) {
+    if (id === "art") return false;
+    var y = /\b(1[5-9]\d\d|20\d\d)\b/.exec(strip(date));
+    return !!y && parseInt(y[1], 10) < 1960;
+  }
 
   // Commons' credits are wiki text anyone can edit: read them in an inert document (nothing in it
   // runs or loads) and keep only the words
@@ -51,18 +61,19 @@
     var url = API + "?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=50" +
       "&gsroffset=" + offset + "&gsrsearch=" + encodeURIComponent(q + " filew:>1800") +
       "&prop=imageinfo&iiprop=url%7Csize%7Cmime%7Cextmetadata&iiurlwidth=1920" +
-      "&iiextmetadatafilter=Artist%7CLicenseShortName%7CObjectName";
+      "&iiextmetadatafilter=Artist%7CLicenseShortName%7CObjectName%7CDateTimeOriginal";
     return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
       var pages = (j.query && j.query.pages) || {};
       return Object.keys(pages).map(function (k) { return pages[k]; }).map(function (p) {
         var ii = p.imageinfo && p.imageinfo[0];
         if (!ii || ii.mime !== "image/jpeg" || !ii.thumburl || !ii.width || !ii.height) return null;
-        if (!/^https:\/\/upload\.wikimedia\.org\//.test(ii.thumburl)) return null;   // Commons' own picture server only
+        if (!HOST.test(ii.thumburl)) return null;   // Commons' own picture servers only
         var ratio = ii.width / ii.height;
         if (ratio < 1.33 || ratio > 2.2 || (ii.thumbwidth || 0) < 1600) return null;
         var m = ii.extmetadata || {}, v = function (x) { return m[x] && m[x].value; };
         var lic = strip(v("LicenseShortName"));
         if (!lic) return null;   // no licence named: never shown
+        if (tooOld(id, v("DateTimeOriginal"))) return null;
         return {
           id: "o" + p.pageid, src: ii.thumburl, coll: id,
           title: strip(v("ObjectName")) || strip(p.title).replace(/^File:/, "").replace(/\.[a-z]+$/i, ""),
